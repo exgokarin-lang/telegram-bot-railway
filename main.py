@@ -2,15 +2,23 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
 import os
 
-def simple_summary(text: str) -> str:
-    # Ambil 1 kalimat pertama sebagai ringkasan
-    sentences = text.split(".")
-    summary = sentences[0]
+def extract_text_for_summary(text: str) -> str:
+    lines = text.splitlines()
+
+    # buang baris yang berisi link
+    clean_lines = [line for line in lines if not line.startswith("http")]
+
+    if not clean_lines:
+        return "Tidak ada teks untuk diringkas."
+
+    full_text = " ".join(clean_lines)
+
+    # ambil kalimat pertama sebagai ringkasan
+    summary = full_text.split(".")[0]
     return summary.strip()
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
-
     lower_text = text.lower()
 
     if "instagram.com" in lower_text:
@@ -23,7 +31,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         platform = None
 
     if platform:
-        summary = simple_summary(text)
+        summary = extract_text_for_summary(text)
         reply = (
             f"{platform} terdeteksi\n\n"
             f"📝 Ringkasan singkat:\n"
