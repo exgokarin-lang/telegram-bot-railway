@@ -1,20 +1,20 @@
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
 import os
+import re
 
 def extract_text_for_summary(text: str) -> str:
-    lines = text.splitlines()
+    # hapus semua URL (http / https)
+    text_without_links = re.sub(r'https?://\S+', '', text)
 
-    # buang baris yang berisi link
-    clean_lines = [line for line in lines if not line.startswith("http")]
+    # rapikan spasi & baris
+    cleaned = text_without_links.strip()
 
-    if not clean_lines:
+    if not cleaned:
         return "Tidak ada teks untuk diringkas."
 
-    full_text = " ".join(clean_lines)
-
-    # ambil kalimat pertama sebagai ringkasan
-    summary = full_text.split(".")[0]
+    # ambil kalimat pertama
+    summary = cleaned.split(".")[0]
     return summary.strip()
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
