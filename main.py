@@ -2,17 +2,35 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
 import os
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text.lower()
+def simple_summary(text: str) -> str:
+    # Ambil 1 kalimat pertama sebagai ringkasan
+    sentences = text.split(".")
+    summary = sentences[0]
+    return summary.strip()
 
-    if "instagram.com" in text:
-        reply = "📸 Link Instagram terdeteksi"
-    elif "tiktok.com" in text:
-        reply = "🎵 Link TikTok terdeteksi"
-    elif "x.com" in text or "twitter.com" in text:
-        reply = "🐦 Link X (Twitter) terdeteksi"
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.strip()
+
+    lower_text = text.lower()
+
+    if "instagram.com" in lower_text:
+        platform = "📸 Instagram"
+    elif "tiktok.com" in lower_text:
+        platform = "🎵 TikTok"
+    elif "x.com" in lower_text or "twitter.com" in lower_text:
+        platform = "🐦 X (Twitter)"
     else:
-        reply = "❓ Pesan diterima, tapi bukan link IG / TikTok / X"
+        platform = None
+
+    if platform:
+        summary = simple_summary(text)
+        reply = (
+            f"{platform} terdeteksi\n\n"
+            f"📝 Ringkasan singkat:\n"
+            f"{summary}"
+        )
+    else:
+        reply = "❓ Pesan diterima, tapi tidak ada link IG / TikTok / X"
 
     await update.message.reply_text(reply)
 
