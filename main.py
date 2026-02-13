@@ -2,49 +2,45 @@ from telegram import Update, MessageEntity
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
 import os
 
-def extract_text(message):
-    # Ambil text atau caption
-    content = message.text or message.caption or ""
-    if not content:
-        return ""
+def get_all_text(message):
+    # 1. text
+    if message.text:
+        return message.text.strip()
 
-    entities = message.entities or message.caption_entities or []
+    # 2. caption
+    if message.caption:
+        return message.caption.strip()
 
-    if not entities:
-        return content.strip()
+    # 3. web page preview (INI YANG PALING SERING KELEWAT)
+    if message.web_page:
+        desc = message.web_page.description or ""
+        title = message.web_page.title or ""
+        combined = f"{title}. {desc}".strip()
+        return combined
 
-    result = []
-    last_index = 0
-
-    for entity in entities:
-        if entity.type in [MessageEntity.URL, MessageEntity.TEXT_LINK]:
-            result.append(content[last_index:entity.offset])
-            last_index = entity.offset + entity.length
-
-    result.append(content[last_index:])
-    return "".join(result).strip()
+    return ""
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    message = update.message
+    msg = update.message
 
-    raw = message.text or message.caption or ""
-    cleaned = extract_text(message)
+    content = get_all_text(msg)
 
-    if not cleaned:
-        await message.reply_text("❌ Tidak ada teks untuk diringkas.")
+    if not content:
+        await msg.reply_text("❌ Tidak ada teks untuk diringkas.")
         return
 
-    lower = raw.lower()
-    if "instagram.com" in lower:
+    lower = content.lower()
+
+    if "instagram" in lower:
         platform = "📸 Instagram"
-    elif "tiktok.com" in lower:
+    elif "tiktok" in lower:
         platform = "🎵 TikTok"
-    elif "x.com" in lower or "twitter.com" in lower:
+    elif "x.com" in lower or "twitter" in lower:
         platform = "🐦 X (Twitter)"
     else:
-        platform = "🔗 Konten"
+        platform = "🔗 Berita"
 
-    summary = cleaned.split(".")[0]
+    summary = content.split(".")[0]
 
     reply = (
         f"{platform} terdeteksi\n\n"
@@ -52,7 +48,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"{summary}"
     )
 
-    await message.reply_text(reply)
+    await msg.reply_text(reply)
 
 def main():
     token = os.getenv("BOT_TOKEN")
@@ -64,7 +60,7 @@ def main():
 
     app.add_handler(
         MessageHandler(
-            filters.TEXT | filters.CAPTION,
+            filters.TEXT | filters.CAPTION | filters.Entity("url"),
             handle_message
         )
     )
