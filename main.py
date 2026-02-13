@@ -1,46 +1,58 @@
-from telegram import Update
+from telegram import Update, MessageEntity
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
 import os
-import re
 
-def extract_text_for_summary(text: str) -> str:
-    # hapus semua URL (http / https)
-    text_without_links = re.sub(r'https?://\S+', '', text)
+def extract_text_excluding_urls(message):
+    text = message.text
+    if not text:
+        return ""
 
-    # rapikan spasi & baris
-    cleaned = text_without_links.strip()
+    if not message.entities:
+        return text.strip()
 
-    if not cleaned:
-        return "Tidak ada teks untuk diringkas."
+    result = []
+    last_index = 0
 
-    # ambil kalimat pertama
-    summary = cleaned.split(".")[0]
-    return summary.strip()
+    for entity in message.entities:
+        if entity.type in [MessageEntity.URL, MessageEntity.TEXT_LINK]:
+            # ambil teks sebelum URL
+            result.append(text[last_index:entity.offset])
+            last_index = entity.offset + entity.length
+
+    result.append(text[last_index:])
+    cleaned = "".join(result).strip()
+
+    return cleaned
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text.strip()
-    lower_text = text.lower()
+    message = update.message
+    full_text = message.text or ""
 
-    if "instagram.com" in lower_text:
+    cleaned_text = extract_text_excluding_urls(message)
+
+    if not cleaned_text:
+        await message.reply_text("❌ Tidak ada teks untuk diringkas.")
+        return
+
+    lower = full_text.lower()
+    if "instagram.com" in lower:
         platform = "📸 Instagram"
-    elif "tiktok.com" in lower_text:
+    elif "tiktok.com" in lower:
         platform = "🎵 TikTok"
-    elif "x.com" in lower_text or "twitter.com" in lower_text:
+    elif "x.com" in lower or "twitter.com" in lower:
         platform = "🐦 X (Twitter)"
     else:
-        platform = None
+        platform = "🔗 Link"
 
-    if platform:
-        summary = extract_text_for_summary(text)
-        reply = (
-            f"{platform} terdeteksi\n\n"
-            f"📝 Ringkasan singkat:\n"
-            f"{summary}"
-        )
-    else:
-        reply = "❓ Pesan diterima, tapi tidak ada link IG / TikTok / X"
+    summary = cleaned_text.split(".")[0]
 
-    await update.message.reply_text(reply)
+    reply = (
+        f"{platform} terdeteksi\n\n"
+        f"📝 Ringkasan singkat:\n"
+        f"{summary}"
+    )
+
+    await message.reply_text(reply)
 
 def main():
     token = os.getenv("BOT_TOKEN")
